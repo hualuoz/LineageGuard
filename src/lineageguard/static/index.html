@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DataHub-aware SQL schema change review">
+  <title>LineageGuard — trace the blast radius</title>
+  <style>
+    :root {
+      --paper: #f3f5f2;
+      --ink: #132c3f;
+      --muted: #61727d;
+      --line: #c8d4d7;
+      --cyan: #bfe5e8;
+      --amber: #f2b544;
+      --red: #be443c;
+      --white: #fcfdfb;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      --body: Aptos, "Segoe UI", sans-serif;
+      --display: "Arial Narrow", "Aptos Display", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(19,44,63,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(19,44,63,.045) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: var(--body);
+      min-height: 100vh;
+    }
+
+    button, textarea { font: inherit; }
+    button:focus-visible, textarea:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+
+    .shell { max-width: 1440px; margin: 0 auto; padding: 22px 28px 38px; }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 15px;
+    }
+
+    .brand { display: flex; align-items: baseline; gap: 12px; }
+    .brand h1 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: clamp(32px, 5vw, 58px);
+      font-stretch: condensed;
+      letter-spacing: -.055em;
+      line-height: .84;
+      text-transform: uppercase;
+    }
+    .brand span { font: 11px var(--mono); letter-spacing: .12em; color: var(--muted); }
+    .source { text-align: right; font: 11px/1.6 var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+    .source strong { display: block; color: #176570; }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+      gap: 40px;
+      padding: 28px 0 22px;
+      align-items: end;
+    }
+    .intro > * { min-width: 0; }
+    .intro h2 { margin: 0; font: 700 clamp(28px, 4vw, 54px)/.98 var(--display); letter-spacing: -.035em; }
+    .intro p { margin: 0; max-width: 560px; color: var(--muted); font-size: 16px; line-height: 1.55; }
+
+    .workspace { width: 100%; display: grid; grid-template-columns: minmax(340px, .82fr) minmax(520px, 1.18fr); border: 1px solid var(--ink); background: var(--white); box-shadow: 7px 7px 0 var(--cyan); }
+    .editor { min-width: 0; border-right: 1px solid var(--ink); display: flex; flex-direction: column; min-height: 620px; }
+    .panel-label { display: flex; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid var(--line); font: 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .panel-label span:last-child { color: var(--muted); }
+    textarea { width: 100%; flex: 1; min-height: 390px; resize: vertical; border: 0; padding: 20px; background: #f8faf8; color: var(--ink); font: 14px/1.65 var(--mono); }
+    .controls { padding: 15px; border-top: 1px solid var(--line); }
+    .trace-button { width: 100%; border: 0; background: var(--ink); color: white; padding: 15px 18px; cursor: pointer; font: 700 13px var(--mono); letter-spacing: .1em; text-transform: uppercase; transition: transform .16s ease, background .16s ease; }
+    .trace-button:hover { transform: translateY(-2px); background: #1c4862; }
+    .trace-button[disabled] { cursor: wait; opacity: .65; transform: none; }
+
+    .results { min-width: 0; display: flex; flex-direction: column; }
+    .decision { display: grid; grid-template-columns: 175px 1fr; min-height: 152px; border-bottom: 1px solid var(--ink); }
+    .stamp { display: grid; place-items: center; border-right: 1px solid var(--ink); background: var(--red); color: white; }
+    .stamp span { font: 900 35px var(--display); letter-spacing: -.02em; transform: rotate(-4deg); border: 3px solid currentColor; padding: 8px 10px 5px; }
+    .score { padding: 20px 24px; display: flex; flex-direction: column; justify-content: center; }
+    .score .metric { font: 800 48px/.9 var(--display); letter-spacing: -.04em; }
+    .score .metric small { font: 12px var(--mono); color: var(--muted); letter-spacing: .06em; }
+    .score p { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+
+    .blast { padding: 20px 22px 16px; border-bottom: 1px solid var(--line); overflow: hidden; }
+    .eyebrow { margin-bottom: 15px; font: 11px var(--mono); color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+    .rail { display: grid; grid-template-columns: minmax(120px, .9fr) 44px minmax(120px, 1fr) 44px minmax(150px, 1.25fr); align-items: stretch; gap: 0; }
+    .rail-link { display: grid; place-items: center; color: var(--red); font: 20px var(--mono); }
+    .asset { position: relative; border: 1px solid var(--ink); padding: 12px; min-height: 90px; background: var(--paper); overflow: hidden; }
+    .asset::before { content: attr(data-kind); display: block; margin-bottom: 7px; color: var(--muted); font: 9px var(--mono); letter-spacing: .1em; }
+    .asset strong { display: block; font: 700 13px/1.3 var(--mono); overflow-wrap: anywhere; }
+    .asset.danger { background: #f7e4df; border-color: var(--red); }
+    .downstream-stack { display: grid; gap: 7px; }
+    .downstream-stack .asset { min-height: 0; padding: 9px 10px; }
+
+    .findings { padding: 18px 22px 22px; overflow: auto; max-height: 318px; }
+    .finding { display: grid; grid-template-columns: 74px 1fr; gap: 12px; padding: 13px 0; border-top: 1px solid var(--line); }
+    .finding:first-of-type { border-top: 0; padding-top: 0; }
+    .severity { align-self: start; padding: 5px 7px; text-align: center; font: 10px var(--mono); letter-spacing: .06em; border: 1px solid currentColor; }
+    .severity.critical, .severity.high { color: var(--red); }
+    .severity.medium { color: #946408; }
+    .severity.low { color: #25717b; }
+    .finding h3 { margin: 0 0 5px; font-size: 15px; }
+    .finding p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .finding code { font: 11px var(--mono); color: var(--ink); }
+
+    .error { margin: 20px; border: 1px solid var(--red); padding: 14px; color: var(--red); font: 13px/1.5 var(--mono); }
+
+    @media (max-width: 900px) {
+      .shell { padding: 18px 16px 30px; }
+      .intro, .workspace { grid-template-columns: 1fr; }
+      .workspace { box-shadow: 4px 4px 0 var(--cyan); }
+      .editor { border-right: 0; border-bottom: 1px solid var(--ink); min-height: 480px; }
+      .source { display: none; }
+    }
+
+    @media (max-width: 580px) {
+      .brand span { display: none; }
+      .decision { grid-template-columns: 125px 1fr; }
+      .stamp span { font-size: 25px; }
+      .rail { grid-template-columns: 1fr; gap: 8px; }
+      .rail-link { transform: rotate(90deg); height: 20px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand"><h1>LineageGuard</h1><span>LG / 0.1</span></div>
+      <div class="source"><strong>DataHub context replay</strong>Schema · governance · lineage</div>
+    </header>
+
+    <section class="intro">
+      <h2>Trace the blast radius<br>before merge.</h2>
+      <p>Paste a proposed migration. LineageGuard cross-examines it against DataHub metadata and turns hidden downstream coupling into a concrete release decision.</p>
+    </section>
+
+    <section class="workspace">
+      <div class="editor">
+        <div class="panel-label"><span>Proposed migration</span><span>SQL</span></div>
+        <textarea id="sql" spellcheck="false" aria-label="SQL migration">ALTER TABLE analytics.customer_orders DROP COLUMN email;
+
+ALTER TABLE analytics.customer_orders
+ADD COLUMN lifecycle_status VARCHAR NOT NULL;
+
+CREATE OR REPLACE VIEW analytics.order_export AS
+SELECT * FROM analytics.customer_orders;</textarea>
+        <div class="controls"><button class="trace-button" id="review">Trace impact →</button></div>
+      </div>
+
+      <div class="results" id="results" aria-live="polite">
+        <div class="decision">
+          <div class="stamp"><span id="verdict">BLOCK</span></div>
+          <div class="score"><div class="metric"><span id="risk">75</span><small> / 100 RISK</small></div><p id="summary">3 findings across 3 statements.</p></div>
+        </div>
+        <div class="blast">
+          <div class="eyebrow">DataHub blast-radius trace</div>
+          <div class="rail" id="rail"></div>
+        </div>
+        <div class="findings" id="findings"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const context = {
+      urn: "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_orders,PROD)",
+      name: "analytics.customer_orders",
+      description: "Customer order facts used by retention, revenue, and executive reporting.",
+      owners: ["urn:li:corpuser:data-platform-oncall"],
+      tags: ["urn:li:tag:Tier1"],
+      columns: [
+        {name: "order_id", native_type: "NUMBER"},
+        {name: "customer_id", native_type: "NUMBER", tags: ["urn:li:tag:PII"], glossary_terms: ["urn:li:glossaryTerm:CustomerIdentifier"]},
+        {name: "email", native_type: "VARCHAR", tags: ["urn:li:tag:PII", "urn:li:tag:Sensitive"], glossary_terms: ["urn:li:glossaryTerm:PersonalEmail"], downstream_assets: [{urn: "urn:li:dataset:(urn:li:dataPlatform:snowflake,ml.churn_features,PROD)", name: "ml.churn_features", type: "DATASET", hops: 1}]},
+        {name: "order_total", native_type: "DECIMAL(18,2)", glossary_terms: ["urn:li:glossaryTerm:Revenue"]}
+      ],
+      downstream_assets: [
+        {urn: "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_360,PROD)", name: "analytics.customer_360", type: "DATASET", hops: 1},
+        {urn: "urn:li:dashboard:(looker,executive_revenue)", name: "Executive Revenue", type: "DASHBOARD", hops: 2}
+      ],
+      source: "datahub-export"
+    };
+
+    const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[char]);
+
+    function render(report) {
+      const stamp = document.querySelector(".stamp");
+      document.getElementById("verdict").textContent = report.verdict.replaceAll("_", " ").toUpperCase();
+      document.getElementById("risk").textContent = report.risk_score;
+      document.getElementById("summary").textContent = report.summary;
+      stamp.style.background = report.verdict === "block" ? "var(--red)" : report.verdict === "manual_review" ? "#946408" : "#25717b";
+
+      const destructive = report.findings.find(item => item.code.startsWith("destructive_"));
+      const column = destructive ? destructive.evidence.match(/Column `([^`]+)`/)?.[1] || "changed field" : "additive change";
+      const affected = destructive?.affected_assets?.length ? destructive.affected_assets : report.dataset.downstream_assets;
+      document.getElementById("rail").innerHTML = `
+        <div class="asset" data-kind="DATASET"><strong>${escapeHtml(report.dataset.name)}</strong></div>
+        <div class="rail-link">→</div>
+        <div class="asset danger" data-kind="CHANGED FIELD"><strong>${escapeHtml(column)}</strong></div>
+        <div class="rail-link">→</div>
+        <div class="downstream-stack">${affected.slice(0, 3).map(asset => `<div class="asset" data-kind="${escapeHtml(asset.type)} · ${asset.hops} HOP"><strong>${escapeHtml(asset.name)}</strong></div>`).join("") || '<div class="asset" data-kind="LINEAGE"><strong>No downstream assets</strong></div>'}</div>`;
+
+      document.getElementById("findings").innerHTML = `<div class="eyebrow">Review findings</div>` + (report.findings.length ? report.findings.map(item => `
+        <article class="finding">
+          <span class="severity ${item.severity}">${escapeHtml(item.severity.toUpperCase())}</span>
+          <div><h3>${escapeHtml(item.title)}</h3><p><code>${escapeHtml(item.code)}</code> — ${escapeHtml(item.evidence)}</p></div>
+        </article>`).join("") : '<p>No blocking patterns detected.</p>');
+    }
+
+    async function review() {
+      const button = document.getElementById("review");
+      button.disabled = true;
+      button.textContent = "Tracing…";
+      try {
+        const response = await fetch("/api/review", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({sql: document.getElementById("sql").value, context})});
+        if (!response.ok) throw new Error(`Review failed with HTTP ${response.status}`);
+        render(await response.json());
+      } catch (error) {
+        document.getElementById("results").innerHTML = `<div class="error">${escapeHtml(error.message)}. Confirm the local LineageGuard server is running, then try again.</div>`;
+      } finally {
+        button.disabled = false;
+        button.textContent = "Trace impact →";
+      }
+    }
+
+    document.getElementById("review").addEventListener("click", review);
+    review();
+  </script>
+</body>
+</html>
