@@ -45,6 +45,10 @@ lineageguard serve
 
 The console visualizes the DataHub blast radius from the changed field to downstream datasets and dashboards. Editing the migration and selecting **Trace impact** reruns the same analyzer used by the CLI.
 
+## Demo video
+
+The repository includes the complete [Remotion demo source](demo-video/README.md). It renders a 60-second, 1080p walkthrough of the problem, DataHub metadata retrieval, merge verdict, lineage trace, and safe migration plan.
+
 ## Connect to DataHub
 
 Install the optional SDK and point the command at a DataHub dataset URN:
