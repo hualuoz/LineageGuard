@@ -1,0 +1,12 @@
+interface:
+  display_name: "LineageGuard Review"
+  short_description: "Block unsafe SQL changes with DataHub lineage"
+  default_prompt: "Use $lineageguard-review to trace a proposed SQL migration and produce a merge decision."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "datahub"
+      description: "Official DataHub MCP Server for metadata, lineage, and approved document writeback"
+      transport: "streamable_http"
+      url: "https://mcp.datahub.com/mcp"

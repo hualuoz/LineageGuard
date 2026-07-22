@@ -38,6 +38,7 @@ class DatasetContext(BaseModel):
     tags: list[str] = Field(default_factory=list)
     columns: list[ColumnContext] = Field(default_factory=list)
     downstream_assets: list[AssetReference] = Field(default_factory=list)
+    metadata_gaps: list[str] = Field(default_factory=list)
     source: str = "fixture"
 
     def column(self, name: str) -> ColumnContext | None:

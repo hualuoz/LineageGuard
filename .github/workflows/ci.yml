@@ -16,7 +16,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[mcp,dev]"
+      - run: python -c "import httpx, mcp"
       - run: pytest -q
       - run: ruff check .
       - run: ruff format --check .
@@ -27,3 +28,20 @@ jobs:
           --context examples/datahub_context.json
           --out review-output/review.md
           --json-out review-output/review.json
+      - name: Exercise the merge-gate action
+        uses: ./
+        with:
+          sql-file: examples/safe_change.sql
+          context-file: examples/datahub_context.json
+          report-directory: action-review-output
+      - name: Exercise a blocking action verdict
+        id: blocked_action
+        continue-on-error: true
+        uses: ./
+        with:
+          sql-file: examples/proposed_change.sql
+          context-file: examples/datahub_context.json
+          report-directory: blocked-action-review-output
+      - name: Assert the unsafe migration was blocked
+        if: steps.blocked_action.outcome != 'failure'
+        run: exit 1

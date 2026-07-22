@@ -1,9 +1,10 @@
 # LineageGuard review
 
-**Verdict:** `block`  
-**Risk score:** `75/100`  
-**Dataset:** `analytics.customer_orders`  
-**Context source:** `datahub-export`
+- **Verdict:** `block`
+- **Risk score:** `75/100`
+- **Dataset:** `analytics.customer_orders`
+- **Dataset URN:** `urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_orders,PROD)`
+- **Context source:** `datahub-export`
 
 3 finding(s) across 3 parsed statement(s); DataHub reports 2 downstream asset(s).
 

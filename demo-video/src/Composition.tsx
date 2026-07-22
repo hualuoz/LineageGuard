@@ -2,8 +2,10 @@ import {
   AbsoluteFill,
   Composition,
   Easing,
+  Img,
   interpolate,
   Sequence,
+  staticFile,
   useCurrentFrame,
 } from "remotion";
 
@@ -43,7 +45,7 @@ const Opening: React.FC = () => {
             }),
           }}
         >
-          A METADATA-AWARE CODE REVIEW AGENT
+          A DATAHUB MCP MERGE-GATE AGENT
         </div>
         <h1
           style={{
@@ -152,15 +154,15 @@ const Migration: React.FC = () => {
 const Metadata: React.FC = () => {
   const frame = useCurrentFrame();
   const items = [
-    ["SCHEMA", "email · VARCHAR"],
-    ["CLASSIFICATION", "PII · Sensitive"],
-    ["OWNER", "data-platform-oncall"],
-    ["LINEAGE", "ml.churn_features · 1 hop"],
+    ["MCP · GET_ENTITIES", "Owner + governance"],
+    ["MCP · LIST_SCHEMA_FIELDS", "email · VARCHAR · PII"],
+    ["MCP · GET_LINEAGE", "ml.churn_features · 1 hop"],
+    ["MCP · SAVE_DOCUMENT", "Approved decisions only"],
   ];
   return (
     <Frame label="METADATA IN THE LOOP">
       <div className="metadata-scene">
-        <div className="kicker">LINEAGEGUARD ASKS DATAHUB</div>
+        <div className="kicker">LINEAGEGUARD CALLS DATAHUB MCP</div>
         <h2>Bring catalog context<br />into the decision.</h2>
         <div className="metadata-stack">
           {items.map(([label, value], index) => (
@@ -183,6 +185,87 @@ const Metadata: React.FC = () => {
         </div>
       </div>
     </Frame>
+  );
+};
+
+const LiveDemo: React.FC = () => {
+  const frame = useCurrentFrame();
+  const blockOpacity = interpolate(frame, [105, 125], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const editOpacity = Math.min(
+    interpolate(frame, [105, 125], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }),
+    interpolate(frame, [245, 265], [1, 0], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }),
+  );
+  const passOpacity = interpolate(frame, [245, 265], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const pointerProgress = interpolate(frame, [135, 220], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: ease,
+  });
+  const caption =
+    frame < 105
+      ? ["01 · REAL LOCAL APP", "Unsafe migration is blocked with DataHub evidence"]
+      : frame < 245
+        ? ["02 · EDIT THE SQL", "Replace the destructive drop with an additive change"]
+        : ["03 · RERUN THE GATE", "PASS WITH CHECKS · risk 0 · merge can continue"];
+
+  return (
+    <AbsoluteFill className="live-demo">
+      <Img
+        className="live-shot"
+        src={staticFile("live-console-block.png")}
+        style={{ opacity: blockOpacity }}
+      />
+      <Img
+        className="live-shot"
+        src={staticFile("live-console-edit.png")}
+        style={{ opacity: editOpacity }}
+      />
+      <Img
+        className="live-shot"
+        src={staticFile("live-console-pass.png")}
+        style={{ opacity: passOpacity }}
+      />
+      <div className="live-proof">LIVE APPLICATION · LOCALHOST · 2026-07-22</div>
+      <div className="live-caption">
+        <span>{caption[0]}</span>
+        <strong>{caption[1]}</strong>
+      </div>
+      {frame >= 105 && frame < 265 ? (
+        <div
+          className="live-pointer"
+          style={{
+            left: interpolate(pointerProgress, [0, 1], [510, 552]),
+            top: interpolate(pointerProgress, [0, 1], [330, 824]),
+          }}
+        >
+          <div
+            className="click-ring"
+            style={{
+              opacity: interpolate(frame, [215, 225, 245], [0, 1, 0], {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }),
+              scale: interpolate(frame, [215, 245], [0.4, 2.3], {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }),
+            }}
+          />
+        </div>
+      ) : null}
+    </AbsoluteFill>
   );
 };
 
@@ -268,11 +351,12 @@ const Ending: React.FC = () => {
 const LineageGuardDemo: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: colors.paper, color: colors.ink }}>
     <Sequence durationInFrames={150}><Opening /></Sequence>
-    <Sequence from={150} durationInFrames={240}><Problem /></Sequence>
-    <Sequence from={390} durationInFrames={360}><Migration /></Sequence>
-    <Sequence from={750} durationInFrames={360}><Metadata /></Sequence>
-    <Sequence from={1110} durationInFrames={360}><Verdict /></Sequence>
-    <Sequence from={1470} durationInFrames={330}><Ending /></Sequence>
+    <Sequence from={150} durationInFrames={210}><Problem /></Sequence>
+    <Sequence from={360} durationInFrames={300}><Migration /></Sequence>
+    <Sequence from={660} durationInFrames={300}><Metadata /></Sequence>
+    <Sequence from={960} durationInFrames={420}><LiveDemo /></Sequence>
+    <Sequence from={1380} durationInFrames={300}><Verdict /></Sequence>
+    <Sequence from={1680} durationInFrames={300}><Ending /></Sequence>
   </AbsoluteFill>
 );
 
@@ -280,7 +364,7 @@ export const MyComposition: React.FC = () => (
   <Composition
     id="LineageGuardDemo"
     component={LineageGuardDemo}
-    durationInFrames={1800}
+    durationInFrames={1980}
     fps={30}
     width={1920}
     height={1080}

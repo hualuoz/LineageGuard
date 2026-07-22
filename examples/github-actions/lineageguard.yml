@@ -1,0 +1,26 @@
+name: SQL lineage gate
+
+on:
+  pull_request:
+    paths:
+      - "migrations/**/*.sql"
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hualuoz/LineageGuard@main
+        with:
+          sql-file: migrations/proposed_change.sql
+          context-file: .lineageguard/datahub-context.json
+          dialect: snowflake
+      - name: Upload review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lineageguard-review
+          path: review-output/

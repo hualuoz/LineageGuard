@@ -63,5 +63,6 @@
       "hops": 2
     }
   ],
+  "metadata_gaps": [],
   "source": "datahub-export"
 }

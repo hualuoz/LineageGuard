@@ -1,0 +1,125 @@
+{
+  "dataset": {
+    "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_orders,PROD)",
+    "name": "analytics.customer_orders",
+    "description": "Customer order facts used by retention, revenue, and executive reporting.",
+    "owners": [
+      "urn:li:corpuser:data-platform-oncall"
+    ],
+    "tags": [
+      "urn:li:tag:Tier1"
+    ],
+    "columns": [
+      {
+        "name": "order_id",
+        "native_type": "NUMBER",
+        "description": "Stable order identifier",
+        "tags": [],
+        "glossary_terms": [],
+        "downstream_assets": []
+      },
+      {
+        "name": "customer_id",
+        "native_type": "NUMBER",
+        "description": "Customer identifier",
+        "tags": [
+          "urn:li:tag:PII"
+        ],
+        "glossary_terms": [
+          "urn:li:glossaryTerm:CustomerIdentifier"
+        ],
+        "downstream_assets": []
+      },
+      {
+        "name": "email",
+        "native_type": "VARCHAR",
+        "description": "Normalized customer email",
+        "tags": [
+          "urn:li:tag:PII",
+          "urn:li:tag:Sensitive"
+        ],
+        "glossary_terms": [
+          "urn:li:glossaryTerm:PersonalEmail"
+        ],
+        "downstream_assets": [
+          {
+            "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ml.churn_features,PROD)",
+            "name": "ml.churn_features",
+            "type": "DATASET",
+            "hops": 1
+          }
+        ]
+      },
+      {
+        "name": "order_total",
+        "native_type": "DECIMAL(18,2)",
+        "description": "Order total in settlement currency",
+        "tags": [],
+        "glossary_terms": [
+          "urn:li:glossaryTerm:Revenue"
+        ],
+        "downstream_assets": []
+      }
+    ],
+    "downstream_assets": [
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,analytics.customer_360,PROD)",
+        "name": "analytics.customer_360",
+        "type": "DATASET",
+        "hops": 1
+      },
+      {
+        "urn": "urn:li:dashboard:(looker,executive_revenue)",
+        "name": "Executive Revenue",
+        "type": "DASHBOARD",
+        "hops": 2
+      }
+    ],
+    "metadata_gaps": [],
+    "source": "datahub-export"
+  },
+  "risk_score": 75,
+  "verdict": "block",
+  "summary": "3 finding(s) across 3 parsed statement(s); DataHub reports 2 downstream asset(s).",
+  "findings": [
+    {
+      "severity": "critical",
+      "code": "destructive_drop_column",
+      "title": "Drop Column can break downstream consumers",
+      "evidence": "Column `email` is targeted by `drop column`. DataHub classifies it with urn:li:tag:PII, urn:li:tag:Sensitive, urn:li:glossaryTerm:PersonalEmail. DataHub lineage shows 1 downstream asset(s): ml.churn_features.",
+      "recommendation": "Use an expand-and-contract migration: add the replacement, backfill it, dual-write, migrate every downstream consumer, and remove the old column only after DataHub lineage and usage checks are clean.",
+      "affected_assets": [
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ml.churn_features,PROD)",
+          "name": "ml.churn_features",
+          "type": "DATASET",
+          "hops": 1
+        }
+      ]
+    },
+    {
+      "severity": "high",
+      "code": "not_null_without_default",
+      "title": "Non-null column is added without a default",
+      "evidence": "New column `lifecycle_status` is `NOT NULL` without a default.",
+      "recommendation": "Add the column as nullable, backfill existing rows, validate completeness, then add the non-null constraint in a later deployment.",
+      "affected_assets": []
+    },
+    {
+      "severity": "medium",
+      "code": "select_star",
+      "title": "Wildcard projection hides schema coupling",
+      "evidence": "The SQL contains `SELECT *`, so new or reordered columns can leak downstream.",
+      "recommendation": "List the required columns explicitly and preserve stable output names.",
+      "affected_assets": []
+    }
+  ],
+  "safe_migration_plan": [
+    "Create an additive schema change and keep the current contract intact.",
+    "Backfill and validate the replacement using explicit row-count and null checks.",
+    "Notify DataHub owners and migrate the listed downstream assets.",
+    "Run the review again after DataHub lineage and usage metadata refresh.",
+    "Remove the old field only after a monitored compatibility window and rollback checkpoint."
+  ],
+  "analyzed_statements": 3
+}

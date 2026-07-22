@@ -1,0 +1,47 @@
+name: LineageGuard merge gate
+description: Block unsafe SQL schema changes using a DataHub-derived context file.
+
+inputs:
+  sql-file:
+    description: Path to the proposed SQL migration.
+    required: true
+  context-file:
+    description: Path to context JSON produced by the LineageGuard DataHub MCP skill.
+    required: true
+  report-directory:
+    description: Directory for Markdown and JSON review evidence.
+    required: false
+    default: review-output
+  dialect:
+    description: Optional SQLGlot dialect name, such as mysql, postgres, or snowflake.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install LineageGuard
+      shell: bash
+      run: python -m pip install "$GITHUB_ACTION_PATH"
+
+    - name: Review migration
+      shell: bash
+      env:
+        LINEAGEGUARD_SQL_FILE: ${{ inputs.sql-file }}
+        LINEAGEGUARD_CONTEXT_FILE: ${{ inputs.context-file }}
+        LINEAGEGUARD_REPORT_DIRECTORY: ${{ inputs.report-directory }}
+        LINEAGEGUARD_DIALECT: ${{ inputs.dialect }}
+      run: |
+        mkdir -p "$LINEAGEGUARD_REPORT_DIRECTORY"
+        args=(
+          review
+          --sql "$LINEAGEGUARD_SQL_FILE"
+          --context "$LINEAGEGUARD_CONTEXT_FILE"
+          --out "$LINEAGEGUARD_REPORT_DIRECTORY/review.md"
+          --json-out "$LINEAGEGUARD_REPORT_DIRECTORY/review.json"
+          --require-pass
+        )
+        if [[ -n "$LINEAGEGUARD_DIALECT" ]]; then
+          args+=(--dialect "$LINEAGEGUARD_DIALECT")
+        fi
+        lineageguard "${args[@]}"
